@@ -5,9 +5,9 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "odyssai",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://odyssaicloserscrm.netlify.app"
         }
       },
       "id": "def967d6-e827-4352-89fb-2cda31532027",
@@ -21,7 +21,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ⚙️ CONFIGURACIÓN — edita solo este bloque\nconst CONFIG = {\n  // GHL → Settings → Private Integrations → token (permisos: contacts y opportunities)\n  ghlToken: 'PEGA_AQUI_TU_TOKEN',\n  // GHL → Settings → Business Profile → Location ID\n  locationId: 'PEGA_AQUI_TU_LOCATION_ID',\n  // Nombre EXACTO del pipeline en GHL para cada marca (Opportunities → Pipelines)\n  pipelines: { aipilot: 'AIPilot', capta: 'Capta', odyssai: 'ODYSSAI' },\n  // Etapa de la app → nombre de la etapa en tu pipeline de GHL (si se llaman distinto)\n  stageMap: {\n    'Nuevo Lead': 'Nuevo Lead', 'Diagnóstico': 'Diagnóstico', 'Propuesta': 'Propuesta',\n    'Negociación': 'Negociación', 'Cerrado': 'Cerrado', 'Perdido': 'Perdido',\n  },\n};\n\nconst body = $input.first().json.body || {};\nconst isProposal = body.type === 'proposal';\nconst lead = body.lead || {};\nconst p = isProposal ? (body.prospect || {}) : lead;\nconst brand = body.brand || lead.brand || '';\nconst brandName = body.brandName || brand;\n\nconst fullName = String(p.name || '').trim() || 'Sin nombre';\nconst [firstName, ...rest] = fullName.split(/\\s+/);\nlet phone = String(p.phone || '').replace(/[^\\d+]/g, '');\nif (/^\\d{10}$/.test(phone)) phone = '+52' + phone;           // número MX sin lada\nelse if (/^\\d{11,15}$/.test(phone)) phone = '+' + phone;\nconst SOURCES = { 'meta-ads': 'Meta Ads', referido: 'Referido', organico: 'Orgánico', whatsapp: 'WhatsApp', 'sitio-web': 'Sitio web' };\nconst source = SOURCES[isProposal ? body.source : lead.source] || '';\nconst stage = isProposal ? 'Propuesta' : (lead.stage || 'Nuevo Lead');\n\nconst contact = {\n  locationId: CONFIG.locationId,\n  firstName,\n  lastName: rest.join(' '),\n  name: fullName,\n  companyName: p.company || '',\n  source: 'ODYSSAI CRM' + (source ? ' · ' + source : ''),\n  tags: [brandName, isProposal ? 'propuesta-enviada' : 'crm'].filter(Boolean),\n};\nif (p.email) contact.email = String(p.email).trim().toLowerCase();\nif (phone) contact.phone = phone;\n\nreturn [{\n  json: {\n    ghlToken: CONFIG.ghlToken,\n    locationId: CONFIG.locationId,\n    contact,\n    brand,\n    pipelineName: CONFIG.pipelines[brand] || brandName,\n    stage,\n    ghlStageName: CONFIG.stageMap[stage] || stage,\n    status: stage === 'Cerrado' ? 'won' : stage === 'Perdido' ? 'lost' : 'open',\n    opportunityName: `${p.company || fullName} — ${brandName}`,\n    amount: Number(isProposal ? body.amount : lead.amount) || 0,\n  },\n}];\n"
+        "jsCode": "// ⚙️ CONFIGURACIÓN — edita solo este bloque\nconst CONFIG = {\n  // El token de GHL ya NO va aquí: vive en la credencial \"GHL Private Integration\" (ver SETUP.md)\n  // GHL → Settings → Business Profile → Location ID\n  locationId: 'PEGA_AQUI_TU_LOCATION_ID',\n  // Nombre EXACTO del pipeline en GHL para cada marca (Opportunities → Pipelines)\n  pipelines: { aipilot: 'AIPilot', capta: 'Capta', odyssai: 'ODYSSAI' },\n  // Etapa de la app → nombre de la etapa en tu pipeline de GHL (si se llaman distinto)\n  stageMap: {\n    'Nuevo Lead': 'Nuevo Lead', 'Diagnóstico': 'Diagnóstico', 'Propuesta': 'Propuesta',\n    'Negociación': 'Negociación', 'Cerrado': 'Cerrado', 'Perdido': 'Perdido',\n  },\n};\n\nconst body = $input.first().json.body || {};\nconst isProposal = body.type === 'proposal';\nconst lead = body.lead || {};\nconst p = isProposal ? (body.prospect || {}) : lead;\nconst brand = body.brand || lead.brand || '';\nconst brandName = body.brandName || brand;\n\nconst fullName = String(p.name || '').trim() || 'Sin nombre';\nconst [firstName, ...rest] = fullName.split(/\\s+/);\nlet phone = String(p.phone || '').replace(/[^\\d+]/g, '');\nif (/^\\d{10}$/.test(phone)) phone = '+52' + phone;           // número MX sin lada\nelse if (/^\\d{11,15}$/.test(phone)) phone = '+' + phone;\nconst SOURCES = { 'meta-ads': 'Meta Ads', referido: 'Referido', organico: 'Orgánico', whatsapp: 'WhatsApp', 'sitio-web': 'Sitio web' };\nconst source = SOURCES[isProposal ? body.source : lead.source] || '';\nconst stage = isProposal ? 'Propuesta' : (lead.stage || 'Nuevo Lead');\n\nconst contact = {\n  locationId: CONFIG.locationId,\n  firstName,\n  lastName: rest.join(' '),\n  name: fullName,\n  companyName: p.company || '',\n  source: 'ODYSSAI CRM' + (source ? ' · ' + source : ''),\n  tags: [brandName, isProposal ? 'propuesta-enviada' : 'crm'].filter(Boolean),\n};\nif (p.email) contact.email = String(p.email).trim().toLowerCase();\nif (phone) contact.phone = phone;\n\nconst error = !CONFIG.locationId || CONFIG.locationId.startsWith('PEGA_AQUI')\n  ? 'Falta el Location ID de GHL en el nodo \"Preparar datos\" de n8n'\n  : (!contact.email && !contact.phone) ? 'El prospecto necesita email o WhatsApp para crearlo en GHL' : '';\n\nreturn [{\n  json: {\n    error,\n    locationId: CONFIG.locationId,\n    contact,\n    brand,\n    pipelineName: CONFIG.pipelines[brand] || brandName,\n    stage,\n    ghlStageName: CONFIG.stageMap[stage] || stage,\n    status: stage === 'Cerrado' ? 'won' : stage === 'Perdido' ? 'lost' : 'open',\n    opportunityName: `${p.company || fullName} — ${brandName}`,\n    amount: Number(isProposal ? body.amount : lead.amount) || 0,\n  },\n}];\n"
       },
       "id": "d4eeafc7-c41b-4fd1-b36b-e5503c317961",
       "name": "Preparar datos",
@@ -40,10 +40,6 @@
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "=Bearer {{ $('Preparar datos').first().json.ghlToken }}"
-            },
-            {
               "name": "Version",
               "value": "2021-07-28"
             },
@@ -55,17 +51,32 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.contact) }}",
-        "options": {}
+        "jsonBody": "={{ JSON.stringify($('Preparar datos').first().json.contact) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "30619bc0-4b8f-4511-bab3-42d983cdf4bf",
       "name": "GHL: crear/actualizar contacto",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        440,
-        0
-      ]
+        660,
+        -100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "GHL Private Integration"
+        }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -84,10 +95,6 @@
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "=Bearer {{ $('Preparar datos').first().json.ghlToken }}"
-            },
-            {
               "name": "Version",
               "value": "2021-07-28"
             },
@@ -97,28 +104,43 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "09f82c2f-2c97-401e-9ea5-6b41752b9112",
       "name": "GHL: leer pipelines",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
-        0
-      ]
+        880,
+        -100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "GHL Private Integration"
+        }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Busca el pipeline y la etapa de GHL por nombre (sin importar acentos ni mayúsculas)\nconst d = $('Preparar datos').first().json;\nconst contactId = $('GHL: crear/actualizar contacto').first().json.contact?.id || '';\nconst pipelines = $input.first().json.pipelines || [];\nconst norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();\nconst pipe = pipelines.find(x => norm(x.name) === norm(d.pipelineName));\nconst stage = pipe && ((pipe.stages || []).find(s => norm(s.name) === norm(d.ghlStageName)) || (pipe.stages || [])[0]);\nreturn [{\n  json: {\n    ...d,\n    contactId,\n    pipelineId: pipe ? pipe.id : '',\n    pipelineStageId: stage ? stage.id : '',\n    aviso: !contactId ? 'GHL no devolvió el contacto'\n      : !pipe ? `No existe un pipeline llamado \"${d.pipelineName}\" en GHL; solo se creó el contacto`\n      : '',\n  },\n}];\n"
+        "jsCode": "// Traduce la respuesta de GHL a un mensaje claro para la app\nconst ghlError = (r, que) => {\n  const s = r.statusCode;\n  if (s >= 200 && s < 300) return '';\n  const m = r.body?.message ?? r.error?.message ?? '';\n  const det = Array.isArray(m) ? m.join(', ') : String(m || '');\n  if (s === 401 || s === 403) return `GHL rechazó el token al ${que} (${s}). Revisa la credencial \"GHL Private Integration\" en n8n y sus permisos`;\n  return `GHL respondió ${s || 'sin conexión'} al ${que}${det ? ': ' + det : ''}`;\n};\n\n// Busca el pipeline y la etapa de GHL por nombre (sin importar acentos ni mayúsculas)\nconst d = $('Preparar datos').first().json;\nconst c = $('GHL: crear/actualizar contacto').first().json;\nconst p = $input.first().json;\nconst error = ghlError(c, 'crear el contacto') || ghlError(p, 'leer los pipelines');\nconst contactId = c.body?.contact?.id || '';\nconst pipelines = p.body?.pipelines || [];\nconst norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();\nconst pipe = pipelines.find(x => norm(x.name) === norm(d.pipelineName));\nconst stage = pipe && ((pipe.stages || []).find(s => norm(s.name) === norm(d.ghlStageName)) || (pipe.stages || [])[0]);\nreturn [{\n  json: {\n    ...d,\n    error: error || (!contactId ? 'GHL no devolvió el contacto' : ''),\n    contactId,\n    pipelineId: pipe ? pipe.id : '',\n    pipelineStageId: stage ? stage.id : '',\n    aviso: (error || pipe) ? '' : `No existe un pipeline llamado \"${d.pipelineName}\" en GHL; solo se creó el contacto`,\n  },\n}];\n"
       },
       "id": "c7d10fd3-48ac-48e4-b8d2-cdd047584247",
       "name": "Ubicar pipeline y etapa",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        0
+        1100,
+        -100
       ]
     },
     {
@@ -139,6 +161,16 @@
                 "operation": "notEmpty",
                 "singleValue": true
               }
+            },
+            {
+              "id": "6c0e1f0a-2a57-4a59-9a43-6d1f1b7f3a10",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -146,12 +178,12 @@
         "options": {}
       },
       "id": "5e7570a7-5a7a-431f-ae3f-4a01d3ae5fe6",
-      "name": "¿Existe el pipeline?",
+      "name": "¿Crear oportunidad?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1100,
-        0
+        1320,
+        -100
       ]
     },
     {
@@ -161,10 +193,6 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $('Preparar datos').first().json.ghlToken }}"
-            },
             {
               "name": "Version",
               "value": "2021-07-28"
@@ -177,16 +205,92 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ locationId: $json.locationId, contactId: $json.contactId, pipelineId: $json.pipelineId, pipelineStageId: $json.pipelineStageId, name: $json.opportunityName, status: $json.status, monetaryValue: $json.amount }) }}",
-        "options": {}
+        "jsonBody": "={{ JSON.stringify({ locationId: $('Ubicar pipeline y etapa').first().json.locationId, contactId: $('Ubicar pipeline y etapa').first().json.contactId, pipelineId: $('Ubicar pipeline y etapa').first().json.pipelineId, pipelineStageId: $('Ubicar pipeline y etapa').first().json.pipelineStageId, name: $('Ubicar pipeline y etapa').first().json.opportunityName, status: $('Ubicar pipeline y etapa').first().json.status, monetaryValue: $('Ubicar pipeline y etapa').first().json.amount }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "id": "b112b387-76e7-4d18-87f1-f2ad2270ca66",
       "name": "GHL: crear/actualizar oportunidad",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1320,
+        1540,
+        -200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "GHL Private Integration"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "0f3c2b1e-9a77-4d3e-8f3a-2a1c5b6d7e80",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3b7a9c2e-5d41-4f8a-9e6b-1c2d3e4f5a60",
+      "name": "¿Configuración completa?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Traduce la respuesta de GHL a un mensaje claro para la app\nconst ghlError = (r, que) => {\n  const s = r.statusCode;\n  if (s >= 200 && s < 300) return '';\n  const m = r.body?.message ?? r.error?.message ?? '';\n  const det = Array.isArray(m) ? m.join(', ') : String(m || '');\n  if (s === 401 || s === 403) return `GHL rechazó el token al ${que} (${s}). Revisa la credencial \"GHL Private Integration\" en n8n y sus permisos`;\n  return `GHL respondió ${s || 'sin conexión'} al ${que}${det ? ': ' + det : ''}`;\n};\n\nconst d = $('Ubicar pipeline y etapa').first().json;\nconst r = $input.first().json;\nreturn [{ json: { ...d, error: ghlError(r, 'crear la oportunidad'), opportunityId: r.body?.opportunity?.id || '' } }];\n"
+      },
+      "id": "8e2f4a6b-1c3d-4e5f-8a9b-0c1d2e3f4a51",
+      "name": "Resultado oportunidad",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
         -100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: !$json.error, error: $json.error || '', aviso: $json.aviso || '', contactId: $json.contactId || '', opportunityId: $json.opportunityId || '' }) }}",
+        "options": {}
+      },
+      "id": "5a1b2c3d-4e5f-4a6b-9c8d-7e6f5a4b3c22",
+      "name": "Responder a la app",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        0
       ]
     }
   ],
@@ -206,7 +310,25 @@
       "main": [
         [
           {
+            "node": "¿Configuración completa?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Configuración completa?": {
+      "main": [
+        [
+          {
             "node": "GHL: crear/actualizar contacto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder a la app",
             "type": "main",
             "index": 0
           }
@@ -239,14 +361,14 @@
       "main": [
         [
           {
-            "node": "¿Existe el pipeline?",
+            "node": "¿Crear oportunidad?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "¿Existe el pipeline?": {
+    "¿Crear oportunidad?": {
       "main": [
         [
           {
@@ -255,7 +377,35 @@
             "index": 0
           }
         ],
-        []
+        [
+          {
+            "node": "Responder a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GHL: crear/actualizar oportunidad": {
+      "main": [
+        [
+          {
+            "node": "Resultado oportunidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado oportunidad": {
+      "main": [
+        [
+          {
+            "node": "Responder a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

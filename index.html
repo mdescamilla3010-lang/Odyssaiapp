@@ -1273,8 +1273,19 @@ async function sendToGHL(payload, statusEl) {
       body: JSON.stringify({ ...payload, sentBy: currentUser?.email || '' }),
       signal: ctrl.signal,
     });
-    // Antes cualquier respuesta (incluso un 500) se mostraba como enviada
-    if (!res.ok) throw new Error(`n8n respondió ${res.status}`);
+    // El flujo responde { ok, error, aviso }; se muestra la causa real del fallo
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error
+        || (res.status === 404 ? 'n8n no encontró el flujo: actívalo (Active) y usa la Production URL'
+        : res.status === 500 ? 'el flujo de n8n falló (n8n respondió 500); revisa n8n → Executions'
+        : `n8n respondió ${res.status}`));
+    }
+    if (data.aviso) {
+      set(`<span class="ghl-badge ghl-err">✓ Contacto en GHL · ${esc(data.aviso)}</span>`);
+      return true;
+    }
     set('<span class="ghl-badge ghl-ok">✓ Enviado a GHL</span>');
     setTimeout(() => set(''), 4000);
     return true;
@@ -1413,6 +1424,7 @@ async function sendProposalToGHL() {
   const phone = document.getElementById('p-phone').value.trim();
   const pain = document.getElementById('p-pain').value.trim();
   if (!name) { document.getElementById('p-name').focus(); toast('Escribe el nombre del prospecto', 'err'); return; }
+  if (!email && !phone) { document.getElementById('p-email').focus(); toast('GHL necesita el email o el WhatsApp del prospecto', 'err'); return; }
 
   const source = document.getElementById('p-source').value;
   const amount = getProposalAmount();
