@@ -508,6 +508,76 @@ a{color:inherit;text-decoration:none}
 .accent-aipilot { color: var(--aipilot); }
 .accent-capta { color: var(--capta); }
 .accent-odyssai { color: var(--odyssai); }
+
+/* ─── EXTRAS ──────────────────────────────────────────────── */
+.mode-badge { font-size: 11px; color: var(--fg3); margin-left: 10px; white-space: nowrap; }
+.user-chip { display: flex; align-items: center; gap: 8px; margin-left: 10px; font-size: 12px; color: var(--fg2); }
+.user-chip button { background: transparent; color: var(--fg3); font-size: 12px; text-decoration: underline; }
+.user-chip button:hover { color: var(--fg); }
+.svc-item:hover .svc-label { color: var(--fg); }
+.svc-check:not(.on) + .svc-label { color: var(--fg3); text-decoration: line-through; }
+.kanban-col.drop-over { outline: 2px dashed var(--fg3); outline-offset: -2px; }
+.lead-card.dragging { opacity: .4; }
+.kanban-col-total { padding: 6px 14px; font-size: 11px; color: var(--fg3); border-bottom: 1px solid var(--border); }
+.note-entry-text { white-space: pre-wrap; word-break: break-word; }
+.note-system { background: transparent; border: 1px dashed var(--border); }
+.note-system .note-entry-text { color: var(--fg2); font-style: italic; }
+.contact-link { color: var(--fg); text-decoration: underline; text-decoration-color: var(--fg3); }
+.contact-link:hover { color: var(--aipilot); }
+.migrate-banner {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 20px; background: #C9973A18; border-bottom: 1px solid #C9973A44;
+  font-size: 13px; color: var(--fg);
+}
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+  background: var(--card2); color: var(--fg); border: 1px solid var(--border);
+  padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 400;
+  opacity: 0; pointer-events: none; transition: all .2s; max-width: calc(100% - 32px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast-err { border-color: #FF4D6D88; color: #FFB3C1; }
+.login-screen {
+  position: fixed; inset: 0; z-index: 300; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.login-card {
+  width: 100%; max-width: 380px; background: var(--card2);
+  border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+}
+.login-msg { font-size: 13px; color: var(--fg2); margin-top: 14px; line-height: 1.5; min-height: 20px; }
+.login-msg.login-err { color: #FF8FA3; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+@media (max-width: 700px) {
+  .topbar { height: auto; flex-wrap: wrap; padding: 8px 16px; gap: 6px; }
+  .logo { margin-right: 8px; }
+  .nav-tab { padding: 6px 10px; }
+  .webhook-btn { margin-left: 0; }
+  .mode-badge, .user-chip { margin-left: 0; }
+  .form-2col, .preview-2col, .detail-grid { grid-template-columns: 1fr; }
+  .form-3col { grid-template-columns: 1fr 1fr; }
+  .crm-search { max-width: none; }
+  .crm-add-btn { margin-left: 0; }
+  .proposals-layout { padding: 20px 16px; }
+}
+
+/* PDF: solo se imprime la propuesta */
+@media print {
+  @page { margin: 14mm; }
+  html, body { background: #fff !important; color: #111 !important; }
+  body > *:not(#page-proposals) { display: none !important; }
+  #page-proposals { display: block !important; }
+  .proposals-layout { padding: 0 !important; max-width: none !important; }
+  .section-header, .brand-tabs, .proposal-grid > :not(#proposal-preview) { display: none !important; }
+  .proposal-grid { display: block !important; }
+  #proposal-preview { background: #fff !important; border: none !important; padding: 0 !important; }
+  #proposal-preview .preview-val, #proposal-preview .preview-svc-list li { color: #111 !important; }
+  #proposal-preview .preview-label { color: #666 !important; }
+  .preview-divider { border-top-color: #ddd !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 </style>
 </head>
 <body>
@@ -521,8 +591,38 @@ a{color:inherit;text-decoration:none}
   </div>
   <button class="webhook-btn" onclick="openWebhookModal()">
     <span class="webhook-dot" id="webhook-dot"></span>
-    GHL Webhook
+    ⚙ Configuración
   </button>
+  <span class="mode-badge" id="mode-badge"></span>
+  <div class="user-chip hidden" id="user-chip">
+    <span id="user-email"></span>
+    <button onclick="signOut()">Salir</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     LOGIN (solo en modo nube)
+══════════════════════════════════════════════════════════════ -->
+<div class="login-screen hidden" id="login-screen">
+  <div class="login-card">
+    <div class="logo" style="font-size:26px;margin:0 0 4px">ODYSSAI</div>
+    <div class="modal-sub" style="margin-bottom:18px">Acceso para el equipo de closers</div>
+    <div id="login-form" style="display:none">
+      <div class="field-label">Tu correo</div>
+      <input class="field-input" id="login-email" type="email" autocomplete="email"
+        placeholder="tu@correo.com" onkeydown="if(event.key==='Enter')sendLoginLink()">
+      <button class="btn btn-primary" id="login-btn" style="width:100%;margin-top:12px" onclick="sendLoginLink()">
+        Enviar link de acceso
+      </button>
+    </div>
+    <div class="login-msg" id="login-msg"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="migrate-banner hidden" id="migrate-banner">
+  <span id="migrate-count"></span>
+  <button class="btn btn-sm btn-primary" onclick="migrateLocalLeads()">Subir a la nube</button>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════
@@ -530,17 +630,23 @@ a{color:inherit;text-decoration:none}
 ══════════════════════════════════════════════════════════════ -->
 <div class="overlay" id="webhook-overlay" onclick="closeWebhookIfOutside(event)">
   <div class="modal">
-    <div class="modal-title">🔗 Integración GoHighLevel</div>
-    <p class="modal-sub">Pega el URL de tu webhook de n8n. Cada vez que guardes un lead o envíes una propuesta, se creará automáticamente el contacto y la oportunidad en GHL.</p>
+    <div class="modal-title">⚙ Configuración</div>
+    <p class="modal-sub">Webhook de n8n para GoHighLevel y equipo de closers. Cada vez que envíes una propuesta o sincronices un lead se crea o actualiza el contacto y la oportunidad en GHL.</p>
     <div class="form-row">
       <div class="field-label">URL Webhook n8n</div>
       <input class="field-input" id="wh-url" type="url"
         placeholder="https://tu-n8n.app.n8n.cloud/webhook/odyssai">
-      <div class="field-hint">Crea un webhook en n8n → conecta a GHL Create Contact + Create Opportunity</div>
+      <div class="field-hint">Importa n8n/odyssai-ghl-workflow.json y pega aquí su Production URL (ver SETUP.md)</div>
+    </div>
+    <div class="form-row">
+      <div class="field-label">Closers del equipo</div>
+      <textarea class="field-input" id="cfg-closers" rows="3" style="resize:vertical"
+        placeholder="Un nombre por línea"></textarea>
+      <div class="field-hint">Un nombre por línea. Aparecen en “Closer asignado”.</div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeWebhookModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveWebhook()">Guardar webhook</button>
+      <button class="btn btn-primary" onclick="saveWebhook()">Guardar</button>
     </div>
   </div>
 </div>
@@ -659,14 +765,15 @@ a{color:inherit;text-decoration:none}
             🚀 Crear en GHL
           </button>
           <button class="btn btn-ghost" onclick="copyProposal()">📋 Copiar texto</button>
+          <button class="btn btn-ghost" onclick="printProposal()">📄 PDF</button>
         </div>
         <div id="prop-ghl-status" style="margin-top:8px;min-height:20px"></div>
       </div>
 
       <!-- Lead capture (after sending) -->
       <div class="prop-card" id="move-to-crm-card" style="margin-top:16px;display:none">
-        <div class="prop-card-title" style="color:var(--aipilot)">✓ Enviado a GHL</div>
-        <p style="font-size:13px;color:var(--fg2);margin-bottom:12px">¿Quieres también añadir este prospecto al CRM para darle seguimiento?</p>
+        <div class="prop-card-title" style="color:var(--aipilot)" id="move-to-crm-title">✓ Enviado a GHL</div>
+        <p style="font-size:13px;color:var(--fg2);margin-bottom:12px">¿Quieres añadir este prospecto al CRM para darle seguimiento?</p>
         <button class="btn btn-ghost btn-sm" onclick="addProspectToCRM()">+ Añadir al CRM</button>
       </div>
     </div>
@@ -725,8 +832,10 @@ a{color:inherit;text-decoration:none}
       <button class="crm-btab" data-brand="odyssai" onclick="switchCRMBrand('odyssai')">🚀 ODYSSAI</button>
     </div>
     <input class="crm-search" id="crm-search" placeholder="Buscar lead..." oninput="renderKanban()">
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()" title="Descargar leads de esta marca">⬇ CSV</button>
     <button class="btn crm-add-btn" id="crm-add-btn" onclick="openAddLead()">+ Nuevo Lead</button>
   </div>
+
 
   <!-- Stats -->
   <div class="crm-stats" id="crm-stats"></div>
@@ -743,10 +852,10 @@ a{color:inherit;text-decoration:none}
   <div class="add-lead-modal">
     <div class="modal-header">
       <div class="modal-title-row">
-        <div class="modal-title">Nuevo Lead</div>
+        <div class="modal-title" id="al-title">Nuevo Lead</div>
         <button class="modal-close" onclick="closeAddLead()">✕</button>
       </div>
-      <div style="font-size:13px;color:var(--fg2)">Añadir prospecto al pipeline</div>
+      <div style="font-size:13px;color:var(--fg2)" id="al-sub">Añadir prospecto al pipeline</div>
     </div>
 
     <div class="form-2col">
@@ -770,12 +879,12 @@ a{color:inherit;text-decoration:none}
       </div>
     </div>
     <div class="form-row">
-      <div class="field-label">Monto propuesto</div>
+      <div class="field-label" id="al-amount-label">Monto propuesto</div>
       <input class="field-input" id="al-amount" type="number" placeholder="0">
     </div>
 
     <div class="form-row">
-      <div class="field-label">Etapa inicial</div>
+      <div class="field-label">Etapa</div>
       <div class="form-3col" id="al-stages"></div>
     </div>
 
@@ -799,7 +908,7 @@ a{color:inherit;text-decoration:none}
       </div>
     </div>
 
-    <div class="form-row">
+    <div class="form-row" id="al-note-row">
       <div class="field-label">Nota inicial</div>
       <textarea class="note-box" id="al-note" rows="2"
         placeholder="Contexto del prospecto, comentarios adicionales..."></textarea>
@@ -892,7 +1001,8 @@ a{color:inherit;text-decoration:none}
         🚀 Sync GHL
       </button>
       <div id="ld-ghl-status"></div>
-      <button class="btn btn-sm btn-ghost" onclick="document.getElementById('ld-confirm-delete').style.display='block'">🗑 Eliminar</button>
+      <button class="btn btn-sm btn-ghost" onclick="openEditLead()">✏ Editar</button>
+      <button class="btn btn-sm btn-ghost" onclick="showDeleteConfirm()">🗑 Eliminar</button>
       <button class="btn btn-sm btn-ghost" onclick="closeDetail()">Cerrar</button>
     </div>
   </div>
@@ -902,7 +1012,17 @@ a{color:inherit;text-decoration:none}
      JAVASCRIPT
 ══════════════════════════════════════════════════════════════ -->
 <script>
-// ─── STATE ────────────────────────────────────────────────────
+// ─── CONFIG ───────────────────────────────────────────────────
+// Base de datos compartida (Supabase). Con ambos valores vacíos la app
+// funciona en modo local: los datos viven solo en este navegador.
+// Ver SETUP.md para obtenerlos.
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+const CLOUD = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+let sb = null;
+let currentUser = null;
+
 const BRANDS = {
   aipilot: {
     name: 'AIPilot', color: '#1AE896', dark: '#061A12', emoji: '⚡',
@@ -934,6 +1054,7 @@ const BRANDS = {
     currency: 'MXN',
     singlePrice: true,
     priceLabel: '$20,000 MXN/mes',
+    monthlyPrice: 20000,
     priceNote: 'Mínimo 3 meses de contrato',
     services: [
       { id: 's1',  label: 'Investigación de mercado y definición del cliente ideal' },
@@ -956,6 +1077,7 @@ const BRANDS = {
     currency: 'MXN',
     singlePrice: true,
     priceLabel: '$20,000 MXN/mes',
+    monthlyPrice: 20000,
     priceNote: 'Aplica para marca personal — fases personalizadas según el proyecto',
     services: [
       { id: 's1',  label: 'Investigación de mercado y definición del cliente ideal' },
@@ -995,11 +1117,42 @@ const STAGE_COLORS = {
   'Perdido':     '#FF4D6D',
 };
 
-// App state
+// ─── HELPERS ──────────────────────────────────────────────────
+// Todo texto capturado por usuarios pasa por esc() antes de ir a innerHTML
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function money(n, currency) {
+  return `$${(Number(n) || 0).toLocaleString('es-MX')}${currency ? ' ' + currency : ''}`;
+}
+function newId() {
+  try { return crypto.randomUUID(); }
+  catch (e) { return 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+}
+let toastTimer;
+function toast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (kind === 'err' ? ' toast-err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'toast'; }, kind === 'err' ? 6000 : 2500);
+}
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve;
+    s.onerror = () => reject(new Error('No se pudo cargar ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+// ─── STATE ────────────────────────────────────────────────────
+const LOCAL_KEY = 'odyssai_v3';
 let S;
 function loadState() {
+  if (CLOUD) { S = defaultState(); return; }  // en modo nube los datos vienen de Supabase
   try {
-    S = JSON.parse(localStorage.getItem('odyssai_v3') || 'null') || defaultState();
+    S = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null') || defaultState();
   } catch(e) { S = defaultState(); }
 }
 function defaultState() {
@@ -1011,7 +1164,8 @@ function defaultState() {
   };
 }
 function saveState() {
-  try { localStorage.setItem('odyssai_v3', JSON.stringify(S)); } catch(e) {}
+  if (CLOUD) return;
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(S)); } catch(e) {}
 }
 loadState();
 // Un estado viejo o incompleto (sin leads/closers) rompía el render del CRM
@@ -1019,6 +1173,48 @@ if (!S || typeof S !== 'object') S = defaultState();
 if (!Array.isArray(S.leads)) S.leads = [];
 if (!Array.isArray(S.closers) || !S.closers.length) S.closers = defaultState().closers;
 if (!Number.isFinite(S.nextId)) S.nextId = S.leads.length + 1;
+
+// ─── DATA LAYER ───────────────────────────────────────────────
+// Modo local: localStorage. Modo nube: Supabase (S es la copia en memoria).
+function toRow(l) {
+  return {
+    id: l.id, brand: l.brand, name: l.name, company: l.company || '',
+    email: l.email || '', phone: l.phone || '', amount: Number(l.amount) || 0,
+    source: l.source || '', stage: l.stage, closer: l.closer || '',
+    notes: l.notes || [], created_at: l.createdAt,
+  };
+}
+function fromRow(r) {
+  return {
+    id: r.id, brand: r.brand, name: r.name, company: r.company, email: r.email,
+    phone: r.phone, amount: Number(r.amount) || 0, source: r.source, stage: r.stage,
+    closer: r.closer, notes: Array.isArray(r.notes) ? r.notes : [], createdAt: r.created_at,
+  };
+}
+async function persistLead(lead) {
+  saveState();
+  if (!CLOUD) return true;
+  const { error } = await sb.from('leads').upsert(toRow(lead));
+  if (error) { toast('No se guardó en la nube: ' + error.message, 'err'); return false; }
+  return true;
+}
+async function removeLead(id) {
+  S.leads = S.leads.filter(l => l.id !== id);
+  saveState();
+  if (!CLOUD) return;
+  const { error } = await sb.from('leads').delete().eq('id', id);
+  if (error) toast('No se borró en la nube: ' + error.message, 'err');
+}
+async function persistSettings() {
+  saveState();
+  if (!CLOUD) return true;
+  const { error } = await sb.from('settings').upsert([
+    { key: 'webhook', value: S.webhook },
+    { key: 'closers', value: S.closers },
+  ]);
+  if (error) { toast('No se guardó la configuración: ' + error.message, 'err'); return false; }
+  return true;
+}
 
 // ─── TABS ─────────────────────────────────────────────────────
 let currentTab = 'proposals';
@@ -1029,9 +1225,10 @@ function switchTab(tab) {
   if (tab === 'crm') renderKanban();
 }
 
-// ─── WEBHOOK ──────────────────────────────────────────────────
+// ─── SETTINGS (webhook + closers) ─────────────────────────────
 function openWebhookModal() {
   document.getElementById('wh-url').value = S.webhook || '';
+  document.getElementById('cfg-closers').value = S.closers.join('\n');
   document.getElementById('webhook-overlay').classList.add('open');
 }
 function closeWebhookModal() {
@@ -1040,41 +1237,63 @@ function closeWebhookModal() {
 function closeWebhookIfOutside(e) {
   if (e.target === document.getElementById('webhook-overlay')) closeWebhookModal();
 }
-function saveWebhook() {
-  S.webhook = document.getElementById('wh-url').value.trim();
-  saveState();
+async function saveWebhook() {
+  const url = document.getElementById('wh-url').value.trim();
+  if (url && !/^https:\/\//i.test(url)) {
+    toast('El webhook debe empezar con https://', 'err');
+    return;
+  }
+  const closers = document.getElementById('cfg-closers').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+  S.webhook = url;
+  S.closers = closers.length ? closers : defaultState().closers;
+  const ok = await persistSettings();
   updateWebhookDot();
   closeWebhookModal();
+  if (ok) toast('Configuración guardada');
 }
 function updateWebhookDot() {
   const dot = document.getElementById('webhook-dot');
   dot.classList.toggle('active', !!S.webhook);
 }
-updateWebhookDot();
 
 async function sendToGHL(payload, statusEl) {
+  const set = html => { if (statusEl) statusEl.innerHTML = html; };
   if (!S.webhook) {
-    if (statusEl) statusEl.innerHTML = '<span class="ghl-badge ghl-err">⚠ Sin webhook</span>';
+    set('<span class="ghl-badge ghl-err">⚠ Configura el webhook</span>');
     return false;
   }
-  if (statusEl) statusEl.innerHTML = '<span class="ghl-badge ghl-load">Enviando...</span>';
+  set('<span class="ghl-badge ghl-load">Enviando...</span>');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
   try {
-    await fetch(S.webhook, {
+    const res = await fetch(S.webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, sentBy: currentUser?.email || '' }),
+      signal: ctrl.signal,
     });
-    if (statusEl) statusEl.innerHTML = '<span class="ghl-badge ghl-ok">✓ Enviado a GHL</span>';
-    setTimeout(() => { if (statusEl) statusEl.innerHTML = ''; }, 4000);
+    // Antes cualquier respuesta (incluso un 500) se mostraba como enviada
+    if (!res.ok) throw new Error(`n8n respondió ${res.status}`);
+    set('<span class="ghl-badge ghl-ok">✓ Enviado a GHL</span>');
+    setTimeout(() => set(''), 4000);
     return true;
   } catch(e) {
-    if (statusEl) statusEl.innerHTML = `<span class="ghl-badge ghl-err">Error: ${e.message}</span>`;
+    const msg = e.name === 'AbortError' ? 'n8n no respondió en 15 s'
+      : e instanceof TypeError ? 'No se pudo conectar (revisa URL o CORS en n8n)'
+      : e.message;
+    set(`<span class="ghl-badge ghl-err">Error: ${esc(msg)}</span>`);
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 // ─── PROPOSALS ────────────────────────────────────────────────
 let propBrand = 'aipilot';
+// Servicios incluidos por marca; por defecto todos
+const selectedSvcs = {};
+Object.keys(BRANDS).forEach(k => { selectedSvcs[k] = new Set(BRANDS[k].services.map(s => s.id)); });
 
 function switchBrand(brand) {
   propBrand = brand;
@@ -1100,13 +1319,26 @@ function renderPriceDisplay() {
 
 function renderSvcList() {
   const b = BRANDS[propBrand];
+  const sel = selectedSvcs[propBrand];
   const html = b.services.map(svc => `
-    <div class="svc-item" style="cursor:default">
-      <div class="svc-check on" data-brand="${propBrand}"></div>
+    <div class="svc-item" onclick="toggleSvc('${svc.id}')">
+      <div class="svc-check ${sel.has(svc.id) ? 'on' : ''}" data-brand="${propBrand}"></div>
       <span class="svc-label">${svc.label}</span>
     </div>
   `).join('');
   document.getElementById('svc-list').innerHTML = html;
+}
+
+function toggleSvc(id) {
+  const sel = selectedSvcs[propBrand];
+  if (sel.has(id)) sel.delete(id); else sel.add(id);
+  renderSvcList();
+  updatePreview();
+}
+
+function getSelectedServices() {
+  const sel = selectedSvcs[propBrand];
+  return BRANDS[propBrand].services.filter(s => sel.has(s.id)).map(s => s.label);
 }
 
 function getPriceText() {
@@ -1120,6 +1352,16 @@ function getPriceText() {
     return b.priceLabel;
   }
   return b.priceLabel;
+}
+
+// Monto que se registra en el CRM al pasar la propuesta
+function getProposalAmount() {
+  if (propBrand === 'aipilot') {
+    const setup = Number(document.getElementById('p-setup').value) || 0;
+    const monthly = Number(document.getElementById('p-monthly').value) || 0;
+    return setup + monthly;
+  }
+  return BRANDS[propBrand].monthlyPrice || 0;
 }
 
 function updateSummary() {
@@ -1143,7 +1385,7 @@ function updatePreview() {
   const name = document.getElementById('p-name').value || '—';
   const company = document.getElementById('p-company').value || '—';
   const pain = document.getElementById('p-pain').value || '—';
-  const svcs = b.services.map(s => s.label);
+  const svcs = getSelectedServices();
 
   document.getElementById('prev-brand-name').textContent = b.name;
   document.getElementById('prev-brand-name').style.color = c;
@@ -1151,7 +1393,9 @@ function updatePreview() {
   document.getElementById('prev-name').textContent = name;
   document.getElementById('prev-company').textContent = company;
   document.getElementById('prev-pain').textContent = pain;
-  document.getElementById('prev-svcs').innerHTML = svcs.map(s => `<li>${s}</li>`).join('');
+  document.getElementById('prev-svcs').innerHTML = svcs.length
+    ? svcs.map(s => `<li>${esc(s)}</li>`).join('')
+    : '<li style="color:var(--fg3)">Selecciona servicios →</li>';
   document.getElementById('prev-price').textContent = getPriceText();
   document.getElementById('prev-price').style.color = c;
   document.getElementById('prev-price-note').textContent = b.priceNote;
@@ -1168,9 +1412,10 @@ async function sendProposalToGHL() {
   const email = document.getElementById('p-email').value.trim();
   const phone = document.getElementById('p-phone').value.trim();
   const pain = document.getElementById('p-pain').value.trim();
-  if (!name) { document.getElementById('p-name').focus(); return; }
+  if (!name) { document.getElementById('p-name').focus(); toast('Escribe el nombre del prospecto', 'err'); return; }
 
   const source = document.getElementById('p-source').value;
+  const amount = getProposalAmount();
   const payload = {
     type: 'proposal',
     brand: propBrand,
@@ -1178,50 +1423,69 @@ async function sendProposalToGHL() {
     prospect: { name, company, email, phone, pain },
     source: source || 'sin-fuente',
     sourceLabel: sourceLabel(source),
-    services: b.services.map(s => s.label),
+    services: getSelectedServices(),
     price: getPriceText(),
     priceNote: b.priceNote,
+    amount,
+    currency: b.currency,
     sentAt: new Date().toISOString(),
   };
 
   const ok = await sendToGHL(payload, document.getElementById('prop-ghl-status'));
-  if (ok) {
-    document.getElementById('move-to-crm-card').style.display = 'block';
-    window._lastProspect = { name, company, email, phone, brand: propBrand, amount: 0, source };
-  }
+  window._lastProspect = { name, company, email, phone, brand: propBrand, amount, source, pain };
+  document.getElementById('move-to-crm-title').textContent = ok ? '✓ Enviado a GHL' : 'Añadir al CRM';
+  document.getElementById('move-to-crm-card').style.display = 'block';
 }
 
-function copyProposal() {
+function proposalText() {
   const b = BRANDS[propBrand];
   const name = document.getElementById('p-name').value || 'Prospecto';
   const company = document.getElementById('p-company').value || '';
   const pain = document.getElementById('p-pain').value || '';
-  const svcs = b.services.map(s => '✓ ' + s.label).join('\n');
+  const svcs = getSelectedServices().map(s => '✓ ' + s).join('\n');
   const price = getPriceText();
-  const text = `*Propuesta Comercial — ${b.name}*\n${new Date().toLocaleDateString('es-MX')}\n\n*Prospecto:* ${name}${company ? ' · ' + company : ''}\n\n*Problema / Diagnóstico:*\n${pain}\n\n*Servicios incluidos:*\n${svcs}\n\n*Inversión:* ${price}\n${b.priceNote ? '(' + b.priceNote + ')' : ''}\n\n${b.cta}`;
-  navigator.clipboard.writeText(text).catch(() => {});
+  return `*Propuesta Comercial — ${b.name}*\n${new Date().toLocaleDateString('es-MX')}\n\n*Prospecto:* ${name}${company ? ' · ' + company : ''}\n\n*Problema / Diagnóstico:*\n${pain}\n\n*Servicios incluidos:*\n${svcs}\n\n*Inversión:* ${price}\n${b.priceNote ? '(' + b.priceNote + ')' : ''}\n\n${b.cta}`;
 }
 
-function addProspectToCRM() {
+function copyProposal() {
+  navigator.clipboard.writeText(proposalText())
+    .then(() => toast('Propuesta copiada — pégala en WhatsApp o correo'))
+    .catch(() => toast('No se pudo copiar; selecciona el texto manualmente', 'err'));
+}
+
+function printProposal() {
+  updatePreview();
+  const name = document.getElementById('p-name').value.trim();
+  const prev = document.title;
+  document.title = `Propuesta ${BRANDS[propBrand].name}${name ? ' - ' + name : ''}`;
+  window.print();
+  document.title = prev;
+}
+
+async function addProspectToCRM() {
   if (!window._lastProspect) return;
   const p = window._lastProspect;
-  const id = 'l' + (S.nextId++);
-  S.leads.push({
-    id, brand: p.brand, name: p.name, company: p.company,
+  const lead = {
+    id: newId(), brand: p.brand, name: p.name, company: p.company,
     email: p.email, phone: p.phone, amount: p.amount,
     source: p.source || '',
-    stage: 'Propuesta', closer: '', notes: [], createdAt: new Date().toISOString(),
-  });
-  saveState();
+    stage: 'Propuesta', closer: '',
+    notes: p.pain ? [{ text: 'Diagnóstico: ' + p.pain, date: new Date().toISOString(), by: currentUser?.email || '' }] : [],
+    createdAt: new Date().toISOString(),
+  };
+  S.leads.push(lead);
+  await persistLead(lead);
   switchTab('crm');
   switchCRMBrand(p.brand);
   document.getElementById('move-to-crm-card').style.display = 'none';
+  window._lastProspect = null;
+  toast('Prospecto añadido al CRM en "Propuesta"');
 }
-
 
 // ─── CRM ──────────────────────────────────────────────────────
 let crmBrand = 'aipilot';
-let editingLeadId = null;
+let editingLeadId = null;   // lead abierto en el detalle
+let formLeadId = null;      // lead en edición en el formulario (null = nuevo)
 
 function switchCRMBrand(brand) {
   crmBrand = brand;
@@ -1235,7 +1499,7 @@ function switchCRMBrand(brand) {
 function crmLeads() {
   const q = (document.getElementById('crm-search') || {}).value?.toLowerCase() || '';
   return S.leads.filter(l => l.brand === crmBrand && (
-    !q || (l.name || '').toLowerCase().includes(q) || (l.company || '').toLowerCase().includes(q)
+    !q || [l.name, l.company, l.email, l.phone].some(v => (v || '').toLowerCase().includes(q))
   ));
 }
 
@@ -1246,6 +1510,8 @@ function renderStats() {
   const active = leads.filter(l => l.stage !== 'Perdido' && l.stage !== 'Cerrado');
   const pipeline = active.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const closedVal = closed.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const decided = leads.filter(l => l.stage === 'Cerrado' || l.stage === 'Perdido').length;
+  const winRate = decided ? Math.round(closed.length / decided * 100) + '%' : '—';
   // Source breakdown
   const srcCounts = {};
   leads.forEach(l => { if (l.source) srcCounts[l.source] = (srcCounts[l.source]||0)+1; });
@@ -1253,7 +1519,7 @@ function renderStats() {
     const s = LEAD_SOURCES[k] || { icon:'•', label: k };
     return `<div class="crm-stat" style="min-width:90px">
       <div class="crm-stat-val" style="font-size:15px">${v}</div>
-      <div class="crm-stat-label">${s.icon} ${s.label}</div>
+      <div class="crm-stat-label">${s.icon} ${esc(s.label)}</div>
     </div>`;
   }).join('');
   document.getElementById('crm-stats').innerHTML = `
@@ -1266,16 +1532,20 @@ function renderStats() {
       <div class="crm-stat-label">Activos</div>
     </div>
     <div class="crm-stat">
-      <div class="crm-stat-val" style="color:${b.color}">$${pipeline.toLocaleString()}</div>
-      <div class="crm-stat-label">Pipeline</div>
+      <div class="crm-stat-val" style="color:${b.color}">${money(pipeline)}</div>
+      <div class="crm-stat-label">Pipeline ${b.currency}</div>
     </div>
     <div class="crm-stat">
-      <div class="crm-stat-val" style="color:#1AE896">$${closedVal.toLocaleString()}</div>
-      <div class="crm-stat-label">Cerrado</div>
+      <div class="crm-stat-val" style="color:#1AE896">${money(closedVal)}</div>
+      <div class="crm-stat-label">Cerrado ${b.currency}</div>
     </div>
     <div class="crm-stat">
       <div class="crm-stat-val">${closed.length}</div>
       <div class="crm-stat-label">Deals cerrados</div>
+    </div>
+    <div class="crm-stat">
+      <div class="crm-stat-val">${winRate}</div>
+      <div class="crm-stat-label">Tasa de cierre</div>
     </div>
     ${srcHtml}
   `;
@@ -1288,27 +1558,31 @@ function renderKanban() {
   kanban.innerHTML = b.pipeline.map(stage => {
     const stageLeads = leads.filter(l => l.stage === stage);
     const dot = `background:${STAGE_COLORS[stage] || '#3A5880'}`;
+    const total = stageLeads.reduce((s, l) => s + (Number(l.amount) || 0), 0);
     const cards = stageLeads.length > 0
-      ? stageLeads.map(l => `
-          <div class="lead-card" onclick="openDetail('${l.id}')">
-            <div class="lead-name">${l.name || '—'}</div>
-            <div class="lead-company">${l.company || '—'}</div>
+      ? stageLeads.map(l => {
+          const src = LEAD_SOURCES[l.source];
+          return `
+          <div class="lead-card" draggable="true" data-id="${esc(l.id)}">
+            <div class="lead-name">${esc(l.name) || '—'}</div>
+            <div class="lead-company">${esc(l.company) || '—'}</div>
             <div class="lead-meta">
-              ${l.amount ? `<span class="lead-amount" style="color:${b.color}">$${Number(l.amount).toLocaleString()}</span>` : ''}
-              ${l.closer ? `<span class="lead-tag">${l.closer.split(' ')[0]}</span>` : ''}
-              ${l.source ? `<span class="lead-tag">${LEAD_SOURCES[l.source]?.icon || ''}${LEAD_SOURCES[l.source]?.label || l.source}</span>` : ''}
+              ${l.amount ? `<span class="lead-amount" style="color:${b.color}">${money(l.amount)}</span>` : ''}
+              ${l.closer ? `<span class="lead-tag">${esc(l.closer.split(' ')[0])}</span>` : ''}
+              ${l.source ? `<span class="lead-tag">${src ? src.icon + ' ' + src.label : esc(l.source)}</span>` : ''}
             </div>
-            <div class="lead-date">${new Date(l.createdAt).toLocaleDateString('es-MX')}</div>
-          </div>
-        `).join('')
+            <div class="lead-date">${new Date(l.createdAt).toLocaleDateString('es-MX')}${(l.notes || []).length ? ' · 📝 ' + l.notes.length : ''}</div>
+          </div>`;
+        }).join('')
       : `<div class="empty-col"><div class="empty-col-icon">○</div>Sin leads</div>`;
     return `
-      <div class="kanban-col">
+      <div class="kanban-col" data-stage="${esc(stage)}">
         <div class="kanban-col-header">
           <div class="kanban-col-dot" style="${dot}"></div>
           <div class="kanban-col-name">${stage}</div>
           <div class="kanban-col-count">${stageLeads.length}</div>
         </div>
+        ${total ? `<div class="kanban-col-total">${money(total, b.currency)}</div>` : ''}
         <div class="kanban-col-body">${cards}</div>
       </div>
     `;
@@ -1316,36 +1590,90 @@ function renderKanban() {
   try { renderStats(); } catch (e) { console.error('renderStats', e); }
 }
 
-// ─── ADD LEAD ─────────────────────────────────────────────────
-function openAddLead(prefill) {
-  // Reset fields
-  ['al-name','al-company','al-email','al-phone','al-amount','al-note','al-source'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
+// Clic y arrastrar entre columnas (delegado: el tablero se re-renderiza seguido)
+function setupKanbanEvents() {
+  const kanban = document.getElementById('kanban');
+  let dragId = null;
+  kanban.addEventListener('click', e => {
+    const card = e.target.closest('.lead-card');
+    if (card) openDetail(card.dataset.id);
   });
-  if (prefill) {
-    if (prefill.name) document.getElementById('al-name').value = prefill.name;
-    if (prefill.company) document.getElementById('al-company').value = prefill.company;
-    if (prefill.email) document.getElementById('al-email').value = prefill.email;
-    if (prefill.phone) document.getElementById('al-phone').value = prefill.phone;
-    if (prefill.amount) document.getElementById('al-amount').value = prefill.amount;
-  }
-  // Populate closer select
-  const sel = document.getElementById('al-closer');
+  kanban.addEventListener('dragstart', e => {
+    const card = e.target.closest('.lead-card');
+    if (!card) return;
+    dragId = card.dataset.id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragId);
+    card.classList.add('dragging');
+  });
+  kanban.addEventListener('dragend', e => {
+    e.target.closest?.('.lead-card')?.classList.remove('dragging');
+    kanban.querySelectorAll('.drop-over').forEach(c => c.classList.remove('drop-over'));
+  });
+  kanban.addEventListener('dragover', e => {
+    const col = e.target.closest('.kanban-col');
+    if (!col || !dragId) return;
+    e.preventDefault();
+    kanban.querySelectorAll('.drop-over').forEach(c => c !== col && c.classList.remove('drop-over'));
+    col.classList.add('drop-over');
+  });
+  kanban.addEventListener('drop', e => {
+    const col = e.target.closest('.kanban-col');
+    if (!col || !dragId) return;
+    e.preventDefault();
+    const id = dragId;
+    dragId = null;
+    moveLeadStage(id, col.dataset.stage);
+  });
+}
+
+// ─── ADD / EDIT LEAD ──────────────────────────────────────────
+function fillCloserSelect(sel, current) {
+  const names = S.closers.slice();
+  if (current && !names.includes(current)) names.push(current);
   sel.innerHTML = '<option value="">Sin asignar</option>' +
-    S.closers.map(c => `<option>${c}</option>`).join('');
-  // Stage buttons
-  const b = BRANDS[crmBrand];
-  document.getElementById('al-stages').innerHTML = b.pipeline.slice(0,-1).map((s,i) => `
-    <button class="stage-btn ${i===0?'active':''}" data-stage="${s}"
-      style="${i===0?`color:${STAGE_COLORS[s]||'var(--fg2)'};border-color:${STAGE_COLORS[s]||'var(--border)'}`:''}"
+    names.map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
+}
+
+function openAddLead(prefill) {
+  openLeadForm(null, prefill);
+}
+function openEditLead() {
+  const lead = S.leads.find(l => l.id === editingLeadId);
+  if (!lead) return;
+  closeDetail();
+  openLeadForm(lead);
+}
+
+function openLeadForm(lead, prefill) {
+  formLeadId = lead ? lead.id : null;
+  const data = lead || prefill || {};
+  const brand = lead ? lead.brand : crmBrand;
+  const b = BRANDS[brand];
+  document.getElementById('al-title').textContent = lead ? 'Editar lead' : 'Nuevo Lead';
+  document.getElementById('al-sub').textContent = lead ? b.name + ' · actualiza los datos del prospecto' : 'Añadir prospecto al pipeline de ' + b.name;
+  document.getElementById('al-name').value = data.name || '';
+  document.getElementById('al-company').value = data.company || '';
+  document.getElementById('al-email').value = data.email || '';
+  document.getElementById('al-phone').value = data.phone || '';
+  document.getElementById('al-amount').value = data.amount ? Number(data.amount) : '';
+  document.getElementById('al-amount-label').textContent = `Monto propuesto (${b.currency})`;
+  document.getElementById('al-source').value = data.source || '';
+  document.getElementById('al-note').value = '';
+  document.getElementById('al-note-row').style.display = lead ? 'none' : 'block';
+  fillCloserSelect(document.getElementById('al-closer'), data.closer || '');
+  const stages = lead ? b.pipeline : b.pipeline.slice(0, -1);
+  const current = data.stage || b.pipeline[0];
+  document.getElementById('al-stages').innerHTML = stages.map(s => `
+    <button class="stage-btn ${s === current ? 'active' : ''}" data-stage="${s}"
+      style="${s === current ? `color:${STAGE_COLORS[s]||'var(--fg2)'};border-color:${STAGE_COLORS[s]||'var(--border)'}` : ''}"
       onclick="selectAddStage(this,'${s}')">${s}</button>
   `).join('');
-  // GHL button color
   document.getElementById('al-ghl-btn').style.background = b.color;
   document.getElementById('al-ghl-btn').style.color = b.dark;
   document.getElementById('al-ghl-status').innerHTML = '';
   document.getElementById('add-lead-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('al-name').focus(), 50);
 }
 
 function selectAddStage(btn, stage) {
@@ -1366,6 +1694,7 @@ function getSelectedAddStage() {
 
 function closeAddLead() {
   document.getElementById('add-lead-overlay').classList.remove('open');
+  formLeadId = null;
 }
 function closeAddIfOutside(e) {
   if (e.target === document.getElementById('add-lead-overlay')) closeAddLead();
@@ -1373,30 +1702,47 @@ function closeAddIfOutside(e) {
 
 async function saveNewLead(sendGHL) {
   const name = document.getElementById('al-name').value.trim();
-  if (!name) { document.getElementById('al-name').focus(); return; }
-  const id = 'l' + (S.nextId++);
-  const noteText = document.getElementById('al-note').value.trim();
-  const lead = {
-    id, brand: crmBrand,
-    name, company: document.getElementById('al-company').value.trim(),
+  if (!name) { document.getElementById('al-name').focus(); toast('El nombre es obligatorio', 'err'); return; }
+  const fields = {
+    name,
+    company: document.getElementById('al-company').value.trim(),
     email: document.getElementById('al-email').value.trim(),
     phone: document.getElementById('al-phone').value.trim(),
-    amount: document.getElementById('al-amount').value || '0',
+    amount: Number(document.getElementById('al-amount').value) || 0,
     source: document.getElementById('al-source').value,
     stage: getSelectedAddStage(),
     closer: document.getElementById('al-closer').value,
-    notes: noteText ? [{ text: noteText, date: new Date().toISOString() }] : [],
-    createdAt: new Date().toISOString(),
   };
-  S.leads.push(lead);
-  saveState();
+  let lead;
+  const editing = formLeadId && S.leads.find(l => l.id === formLeadId);
+  if (editing) {
+    lead = editing;
+    if (lead.stage !== fields.stage) {
+      lead.notes = lead.notes || [];
+      lead.notes.push({ text: `Etapa: ${lead.stage} → ${fields.stage}`, date: new Date().toISOString(), by: currentUser?.email || '', system: true });
+    }
+    Object.assign(lead, fields);
+  } else {
+    const noteText = document.getElementById('al-note').value.trim();
+    lead = {
+      id: newId(), brand: crmBrand, ...fields,
+      notes: noteText ? [{ text: noteText, date: new Date().toISOString(), by: currentUser?.email || '' }] : [],
+      createdAt: new Date().toISOString(),
+    };
+    S.leads.push(lead);
+  }
+  await persistLead(lead);
   renderKanban();
   if (sendGHL) {
-    const payload = { type: 'lead', brand: crmBrand, lead };
-    await sendToGHL(payload, document.getElementById('al-ghl-status'));
+    const b = BRANDS[lead.brand];
+    const payload = { type: editing ? 'lead_sync' : 'lead', brand: lead.brand, brandName: b.name, currency: b.currency, lead };
+    const ok = await sendToGHL(payload, document.getElementById('al-ghl-status'));
+    if (!ok) return;  // el formulario queda abierto para ver el error
+    setTimeout(closeAddLead, 1200);
+  } else {
+    closeAddLead();
   }
-  if (!sendGHL) closeAddLead();
-  else setTimeout(closeAddLead, 2000);
+  toast(editing ? 'Lead actualizado' : 'Lead guardado');
 }
 
 // ─── LEAD DETAIL ──────────────────────────────────────────────
@@ -1408,26 +1754,24 @@ function openDetail(id) {
 
   document.getElementById('ld-name').textContent = lead.name;
   document.getElementById('ld-company').textContent = lead.company || '';
-  document.getElementById('ld-email').textContent = lead.email || '—';
-  document.getElementById('ld-phone').textContent = lead.phone || '—';
-  document.getElementById('ld-amount').textContent = lead.amount ? `$${Number(lead.amount).toLocaleString()} ${b.currency}` : '—';
+  setContactLink('ld-email', lead.email, lead.email ? 'mailto:' + lead.email : '');
+  const wa = (lead.phone || '').replace(/\D/g, '');
+  setContactLink('ld-phone', lead.phone, wa ? 'https://wa.me/' + wa : '');
+  document.getElementById('ld-amount').textContent = lead.amount ? money(lead.amount, b.currency) : '—';
   document.getElementById('ld-amount').style.color = b.color;
 
   // Closer select
-  const csel = document.getElementById('ld-closer');
-  csel.innerHTML = '<option value="">Sin asignar</option>' +
-    S.closers.map(c => `<option ${c === lead.closer ? 'selected' : ''}>${c}</option>`).join('');
+  fillCloserSelect(document.getElementById('ld-closer'), lead.closer || '');
 
   // Stage progress
-  document.getElementById('ld-stages').innerHTML = b.pipeline.map(s => {
-    const stageIdx = b.pipeline.indexOf(s);
-    const curIdx = b.pipeline.indexOf(lead.stage);
+  const curIdx = b.pipeline.indexOf(lead.stage);
+  document.getElementById('ld-stages').innerHTML = b.pipeline.map((s, stageIdx) => {
     const isCurrent = s === lead.stage;
     const isDone = stageIdx < curIdx;
     const color = STAGE_COLORS[s] || '#3A5880';
     return `<button class="stage-pip ${isCurrent ? 'current' : isDone ? 'done' : ''}"
       style="${isCurrent ? `color:${color};border-color:${color}` : ''}"
-      onclick="moveLeadStage('${id}','${s}')">${s}</button>`;
+      onclick="moveLeadStage(editingLeadId,'${s}')">${s}</button>`;
   }).join('');
 
   // Notes
@@ -1443,64 +1787,76 @@ function openDetail(id) {
   document.getElementById('lead-detail-overlay').classList.add('open');
 }
 
+function setContactLink(elId, text, href) {
+  const el = document.getElementById(elId);
+  el.innerHTML = text
+    ? (href ? `<a href="${esc(href)}" target="_blank" rel="noopener" class="contact-link">${esc(text)}</a>` : esc(text))
+    : '—';
+}
+
 function renderDetailNotes(lead) {
   const notes = (lead.notes || []).slice().reverse();
   document.getElementById('ld-notes-history').innerHTML = notes.length > 0
     ? notes.map(n => `
-        <div class="note-entry">
-          <div class="note-entry-date">${new Date(n.date).toLocaleString('es-MX')}</div>
-          <div class="note-entry-text">${n.text}</div>
+        <div class="note-entry${n.system ? ' note-system' : ''}">
+          <div class="note-entry-date">${new Date(n.date).toLocaleString('es-MX')}${n.by ? ' · ' + esc(n.by) : ''}</div>
+          <div class="note-entry-text">${esc(n.text)}</div>
         </div>
       `).join('')
     : '<div style="color:var(--fg3);font-size:12px">Sin notas aún</div>';
 }
 
-function addNoteToLead() {
+async function addNoteToLead() {
   const lead = S.leads.find(l => l.id === editingLeadId);
   if (!lead) return;
   const text = document.getElementById('ld-note-input').value.trim();
   if (!text) return;
   if (!lead.notes) lead.notes = [];
-  lead.notes.push({ text, date: new Date().toISOString() });
-  saveState();
+  lead.notes.push({ text, date: new Date().toISOString(), by: currentUser?.email || '' });
   renderDetailNotes(lead);
   document.getElementById('ld-note-input').value = '';
-  document.getElementById('ld-note-status').textContent = '✓ Nota guardada';
+  const ok = await persistLead(lead);
+  renderKanban();
+  document.getElementById('ld-note-status').textContent = ok ? '✓ Nota guardada' : '';
   setTimeout(() => { document.getElementById('ld-note-status').textContent = ''; }, 2000);
 }
 
-function moveLeadStage(id, stage) {
+async function moveLeadStage(id, stage) {
   const lead = S.leads.find(l => l.id === id);
-  if (!lead) return;
+  if (!lead || lead.stage === stage) return;
+  lead.notes = lead.notes || [];
+  lead.notes.push({ text: `Etapa: ${lead.stage} → ${stage}`, date: new Date().toISOString(), by: currentUser?.email || '', system: true });
   lead.stage = stage;
-  saveState();
-  openDetail(id); // re-render detail
   renderKanban();
+  if (editingLeadId === id && document.getElementById('lead-detail-overlay').classList.contains('open')) openDetail(id);
+  await persistLead(lead);
 }
 
-function updateLeadCloser() {
+async function updateLeadCloser() {
   const lead = S.leads.find(l => l.id === editingLeadId);
   if (!lead) return;
   lead.closer = document.getElementById('ld-closer').value;
-  saveState();
   renderKanban();
+  await persistLead(lead);
 }
 
 function showDeleteConfirm() {
   document.getElementById('ld-confirm-delete').style.display = 'block';
 }
 
-function confirmDeleteLead() {
-  S.leads = S.leads.filter(l => l.id !== editingLeadId);
-  saveState();
+async function confirmDeleteLead() {
+  const id = editingLeadId;
   closeDetail();
+  await removeLead(id);
   renderKanban();
+  toast('Lead eliminado');
 }
 
 async function syncLeadToGHL() {
   const lead = S.leads.find(l => l.id === editingLeadId);
   if (!lead) return;
-  await sendToGHL({ type: 'lead_sync', brand: lead.brand, lead }, document.getElementById('ld-ghl-status'));
+  const b = BRANDS[lead.brand];
+  await sendToGHL({ type: 'lead_sync', brand: lead.brand, brandName: b.name, currency: b.currency, lead }, document.getElementById('ld-ghl-status'));
 }
 
 function closeDetail() {
@@ -1511,11 +1867,191 @@ function closeDetailIfOutside(e) {
   if (e.target === document.getElementById('lead-detail-overlay')) closeDetail();
 }
 
+// ─── EXPORT CSV ───────────────────────────────────────────────
+function csvCell(v) {
+  let s = String(v ?? '');
+  if (/^[=+\-@]/.test(s)) s = "'" + s;   // evita fórmulas al abrir en Excel
+  return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function exportCSV() {
+  const b = BRANDS[crmBrand];
+  const leads = crmLeads();
+  if (!leads.length) { toast('No hay leads para exportar en ' + b.name, 'err'); return; }
+  const head = ['Nombre','Empresa','Email','WhatsApp','Monto','Moneda','Etapa','Closer','Fuente','Fecha','Notas'];
+  const rows = leads.map(l => [
+    l.name, l.company, l.email, l.phone, Number(l.amount) || 0, b.currency, l.stage, l.closer,
+    LEAD_SOURCES[l.source]?.label || l.source || '', new Date(l.createdAt).toLocaleDateString('es-MX'),
+    (l.notes || []).map(n => n.text).join(' | '),
+  ]);
+  const csv = '﻿' + [head, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `odyssai-${crmBrand}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`${leads.length} leads exportados`);
+}
+
+// ─── CLOUD: LOGIN + SYNC ──────────────────────────────────────
+function showLogin(msg, isError) {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-form').style.display = sb ? 'block' : 'none';
+  setLoginMsg(msg || '', isError);
+}
+function setLoginMsg(msg, isError) {
+  const el = document.getElementById('login-msg');
+  el.textContent = msg;
+  el.classList.toggle('login-err', !!isError);
+}
+
+async function initCloud() {
+  showLogin('Conectando…');
+  await loadScript(SUPABASE_JS);
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session?.user && !currentUser) onSignedIn(session.user);
+    if (event === 'SIGNED_OUT' && currentUser) location.reload();
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) await onSignedIn(session.user);
+  else if (!currentUser) showLogin('');
+}
+
+async function sendLoginLink() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) { setLoginMsg('Escribe un correo válido', true); return; }
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  setLoginMsg('Enviando…');
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname },
+  });
+  btn.disabled = false;
+  if (error) {
+    const denied = /signup|not allowed|not found/i.test(error.message);
+    setLoginMsg(denied ? 'Este correo no tiene acceso. Pide al administrador que te invite.' : 'Error: ' + error.message, true);
+    return;
+  }
+  setLoginMsg('✓ Te enviamos un link a ' + email + '. Ábrelo en este mismo navegador para entrar.');
+}
+
+let signingIn = false;
+async function onSignedIn(user) {
+  if (currentUser || signingIn) return;
+  signingIn = true;
+  try {
+    showLogin('Cargando datos…');
+    await loadCloud();
+    currentUser = user;
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('user-email').textContent = user.email;
+    document.getElementById('user-chip').classList.remove('hidden');
+    updateWebhookDot();
+    renderKanban();
+    subscribeRealtime();
+    checkLocalMigration();
+  } catch (e) {
+    showLogin('No se pudieron cargar los datos: ' + e.message, true);
+  } finally {
+    signingIn = false;
+  }
+}
+
+async function loadCloud() {
+  const [leadsRes, setRes] = await Promise.all([
+    sb.from('leads').select('*').order('created_at'),
+    sb.from('settings').select('*'),
+  ]);
+  if (leadsRes.error) throw leadsRes.error;
+  if (setRes.error) throw setRes.error;
+  S.leads = leadsRes.data.map(fromRow);
+  setRes.data.forEach(r => {
+    if (r.key === 'webhook' && typeof r.value === 'string') S.webhook = r.value;
+    if (r.key === 'closers' && Array.isArray(r.value) && r.value.length) S.closers = r.value;
+  });
+}
+
+// Cambios de otros closers llegan en vivo
+function subscribeRealtime() {
+  sb.channel('leads-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, payload => {
+      if (payload.eventType === 'DELETE') {
+        S.leads = S.leads.filter(l => l.id !== payload.old.id);
+        if (editingLeadId === payload.old.id) closeDetail();
+      } else {
+        const lead = fromRow(payload.new);
+        const i = S.leads.findIndex(l => l.id === lead.id);
+        if (i >= 0) S.leads[i] = lead; else S.leads.push(lead);
+        if (editingLeadId === lead.id) renderDetailNotes(lead);
+      }
+      renderKanban();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, payload => {
+      const r = payload.new;
+      if (r?.key === 'webhook' && typeof r.value === 'string') { S.webhook = r.value; updateWebhookDot(); }
+      if (r?.key === 'closers' && Array.isArray(r.value) && r.value.length) S.closers = r.value;
+    })
+    .subscribe();
+}
+
+// Leads capturados antes en modo local (este navegador) que aún no están en la nube
+function localOnlyLeads() {
+  try {
+    const local = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null');
+    if (!local || !Array.isArray(local.leads)) return [];
+    const ids = new Set(S.leads.map(l => l.id));
+    return local.leads.filter(l => l && l.name && l.brand && !ids.has(l.id));
+  } catch (e) { return []; }
+}
+function checkLocalMigration() {
+  const pending = localOnlyLeads();
+  const banner = document.getElementById('migrate-banner');
+  banner.classList.toggle('hidden', !pending.length);
+  if (pending.length) {
+    document.getElementById('migrate-count').textContent =
+      `Hay ${pending.length} lead${pending.length > 1 ? 's' : ''} guardado${pending.length > 1 ? 's' : ''} solo en este navegador.`;
+  }
+}
+async function migrateLocalLeads() {
+  const pending = localOnlyLeads().map(l => ({
+    ...l,
+    stage: l.stage || 'Nuevo Lead',
+    notes: Array.isArray(l.notes) ? l.notes : [],
+    createdAt: l.createdAt || new Date().toISOString(),
+  }));
+  if (!pending.length) return;
+  const { error } = await sb.from('leads').upsert(pending.map(toRow));
+  if (error) { toast('No se pudieron subir: ' + error.message, 'err'); return; }
+  pending.forEach(l => { if (!S.leads.some(x => x.id === l.id)) S.leads.push(l); });
+  renderKanban();
+  checkLocalMigration();
+  toast(`${pending.length} leads subidos a la nube`);
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
 // ─── INIT ─────────────────────────────────────────────────────
 // Ambas vistas se pintan al cargar, con AIPilot como marca activa
 function initApp() {
   try { switchBrand(propBrand); } catch (e) { console.error('init proposals', e); }
   try { switchCRMBrand(crmBrand); } catch (e) { console.error('init crm', e); }
+  try { setupKanbanEvents(); } catch (e) { console.error('init kanban events', e); }
+  updateWebhookDot();
+  document.getElementById('mode-badge').textContent = CLOUD ? '☁ Nube' : '💾 Local';
+  document.getElementById('mode-badge').title = CLOUD
+    ? 'Datos compartidos con el equipo (Supabase)'
+    : 'Datos guardados solo en este navegador';
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    closeWebhookModal(); closeAddLead(); closeDetail();
+  });
+  if (CLOUD) initCloud().catch(e => showLogin('No se pudo conectar con la base de datos: ' + e.message, true));
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApp);
 else initApp();
