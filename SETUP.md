@@ -79,14 +79,21 @@ Esto crea las tablas `leads` y `settings`, con seguridad: **solo usuarios con se
 
 ### 3.2 Importar el flujo
 1. n8n → **Workflows → Import from File** → [`n8n/odyssai-ghl-workflow.json`](n8n/odyssai-ghl-workflow.json).
-2. Abre el nodo **Preparar datos** y edita solo el bloque `CONFIG`:
+2. **Token como credencial** (ya no va en texto plano dentro del flujo): n8n → **Credentials → Add credential → Header Auth**.
+   - Nombre de la credencial: `GHL Private Integration`
+   - Name: `Authorization`
+   - Value: `Bearer ` seguido del token (con el espacio). Ej.: `Bearer pit-xxxx…`
+   - **Save**. Luego abre los tres nodos **GHL: …** y en *Credential for Header Auth* elige `GHL Private Integration`.
+3. Abre el nodo **Preparar datos** y edita solo el bloque `CONFIG`:
    ```js
-   ghlToken: 'tu token',
    locationId: 'tu location id',
    pipelines: { aipilot: 'AIPilot', capta: 'Capta', odyssai: 'ODYSSAI' },
    ```
-3. **Save** → interruptor **Active** (arriba a la derecha).
-4. Abre el nodo **Webhook ODYSSAI** → pestaña **Production URL** → copia la URL (termina en `/webhook/odyssai`).
+4. **Save** → interruptor **Active** (arriba a la derecha).
+5. Abre el nodo **Webhook ODYSSAI** → pestaña **Production URL** → copia la URL (termina en `/webhook/odyssai`).
+   El webhook solo acepta llamadas desde `https://odyssaicloserscrm.netlify.app` (opción *Allowed Origins*). Si cambias el dominio de la app, cámbialo ahí también.
+
+> **Si ya tenías importada la versión anterior del flujo:** bórrala o desactívala e importa esta. La anterior tenía el token en texto plano: después de importar la nueva, **regenera el token** en GHL (Private Integrations → Rotate) y pon el nuevo solo en la credencial.
 
 ### 3.3 Conectar la app
 En la app → **⚙ Configuración** → pega la Production URL → **Guardar**. El punto verde indica que está configurado.
@@ -96,16 +103,18 @@ En la app → **⚙ Configuración** → pega la Production URL → **Guardar**.
 App ──POST──▶ Webhook ─▶ Preparar datos ─▶ GHL contacto (crea o actualiza por email/teléfono)
                                          ─▶ Leer pipelines ─▶ Ubicar pipeline y etapa
                                          ─▶ GHL oportunidad (crea o actualiza, con monto y estado)
+                                         ─▶ Responder a la app ({ ok, error, aviso })
 ```
 - **🚀 Crear en GHL** (Propuestas): contacto + oportunidad en la etapa *Propuesta*, con etiqueta de la marca y `propuesta-enviada`.
 - **Guardar + GHL** y **🚀 Sync GHL** (CRM): contacto + oportunidad en la etapa actual del lead. *Cerrado* → `won`, *Perdido* → `lost`.
 - El teléfono se normaliza (10 dígitos → `+52…`).
-- Si GHL responde con error, la app muestra **Error: n8n respondió 500**; revisa el detalle en n8n → **Executions**.
+- Si algo falla, la app muestra la causa en español, por ejemplo *GHL rechazó el token…*, *Falta el Location ID…* o *No existe un pipeline llamado "AIPilot"…* (en ese caso sí se crea el contacto). El detalle completo queda en n8n → **Executions**.
 
 ### 3.5 Probar
 1. En la app, Propuestas → llena un prospecto de prueba → **🚀 Crear en GHL**.
 2. Debe salir **✓ Enviado a GHL** y en GHL aparecer el contacto y la oportunidad.
-3. Si sale *"No se pudo conectar (revisa URL o CORS en n8n)"*: confirma que el flujo está **Active** y que usaste la **Production URL**, no la de prueba.
+3. Si sale *"No se pudo conectar (revisa URL o CORS en n8n)"*: confirma que el flujo está **Active**, que usaste la **Production URL** (no la de prueba) y que abriste la app desde `https://odyssaicloserscrm.netlify.app`.
+4. Para crear el contacto en GHL el prospecto necesita **email o WhatsApp**.
 
 ---
 
