@@ -1016,8 +1016,8 @@ a{color:inherit;text-decoration:none}
 // Base de datos compartida (Supabase). Con ambos valores vacíos la app
 // funciona en modo local: los datos viven solo en este navegador.
 // Ver SETUP.md para obtenerlos.
-const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';
+const SUPABASE_URL = 'https://pvkqjgfzmkumzmylzuof.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2a3FqZ2Z6bWt1bXpteWx6dW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxMDA2MDEsImV4cCI6MjEwNzY3NjYwMX0.VQWf6IV9eJPn743ZahUvLspKcGvXvm5XFnuOjtNLHdI';
 const CLOUD = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
 let sb = null;
